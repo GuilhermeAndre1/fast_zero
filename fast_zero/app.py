@@ -1,8 +1,11 @@
 from http import HTTPStatus
 
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi import Depends, FastAPI, HTTPException
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from fast_zero.database import get_session
+from fast_zero.models import User
 from fast_zero.schemas import Message, UserDB, UserList, UserPublic, UserSchema
 
 app = FastAPI()
@@ -29,13 +32,33 @@ def cuspir_html():
 
 
 @app.post('/users/', status_code=HTTPStatus.CREATED, response_model=UserPublic)
-def create_user(user: UserSchema):
-    user_with_id = UserDB(id=len(database) + 1, **user.model_dump())
+def create_user(user: UserSchema, session: Session = Depends(get_session)):
+    db_user = session.scalar(
+        select(User).where(
+            (User.username == user.username) | (User.email == user.email)
+        )
+    )
 
-    database.append(user_with_id)
+    if db_user:
+        if db_user.username == user.username:
+            raise HTTPException(
+                status_code=HTTPException.BAD_REQUEST,
+                detail='Username already exists',
+            )     
+        elif db_user.email == user.email:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST
+                detail='Email already exists'
+            )
+        
+    db_user = User(
+        username=user.username, password=user.password, email=user.email 
+    )
+    session.add(db_user)
+    session.commit()
+    session.refresh(db_user)
 
-    return user_with_id
-
+    return db_user
 
 @app.get('/users/', response_model=UserList)
 def read_users():
@@ -59,7 +82,7 @@ def update_user(user_id: int, user: UserSchema):
 @app.delete('/users/{user_id}', response_model=Message)
 def delete_user(user_id: int):
     if user_id > len(database) or user_id < 1:
-        raise HTTPException(
+        raise HTTPException( 
             status_code=HTTPStatus.NOT_FOUND, detail='User not found'
         )
 
