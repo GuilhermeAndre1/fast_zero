@@ -8,27 +8,19 @@ def test_root_deve_retornar_ok_e_ola_mundo(client):
     assert response.json() == {'message': 'Olá mundo!'}
 
 
-def test_cuspir_html_deve_retornar_ok_e_ola_mundo(client):
-    response = client.get('/')  # Act
-
-    assert response.status_code == HTTPStatus.OK  # Assert
-
-
 def test_create_user(client):
-    response = client.post(  # UserSchema
-        '/users/',
+    response = client.post(
+        '/users',
         json={
-            'username': 'testusername',
-            'email': 'test@test.com',
-            'password': 'password',
+            'username': 'alice',
+            'email': 'alice@example.com',
+            'password': 'secret',
         },
     )
-    # voltou status code correto?
     assert response.status_code == HTTPStatus.CREATED
-    # validar UserPublic
     assert response.json() == {
-        'username': 'testusername',
-        'email': 'test@test.com',
+        'username': 'alice',
+        'email': 'alice@example.com',
         'id': 1,
     }
 
